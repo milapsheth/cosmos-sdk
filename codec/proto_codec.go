@@ -56,14 +56,21 @@ func (pc *ProtoCodec) MustMarshal(o ProtoMarshaler) []byte {
 
 // MarshalLengthPrefixed implements BinaryMarshaler.MarshalLengthPrefixed method.
 func (pc *ProtoCodec) MarshalLengthPrefixed(o ProtoMarshaler) ([]byte, error) {
-	bz, err := pc.Marshal(o)
+	size := o.Size()
+	sizeBuf := make([]byte, 0, binary.MaxVarintLen64) // [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(sizeBuf, uint64(size))
+	bz := make([]byte, 0, size+n)
+	copy(bz[:n], sizeBuf)
+
+	b, err := pc.Marshal(o)
 	if err != nil {
 		return nil, err
 	}
+	copy(bz[n:], b)
 
-	var sizeBuf [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(sizeBuf[:], uint64(o.Size()))
-	return append(sizeBuf[:n], bz...), nil
+	// var sizeBuf [binary.MaxVarintLen64]byte
+	// n := binary.PutUvarint(sizeBuf[:], uint64(o.Size()))
+	return bz, nil
 }
 
 // MustMarshalLengthPrefixed implements BinaryMarshaler.MustMarshalLengthPrefixed method.
